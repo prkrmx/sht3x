@@ -19,7 +19,7 @@ sht3x::~sht3x()
 
 void sht3x::init()
 {
-    i2c->address = SHT3x_ADDR_1;
+    i2c->address = ADDR_1;
     reset();
     get_status();
 }
@@ -27,7 +27,7 @@ void sht3x::init()
 void sht3x::reset()
 {
     printf("SHT3X: Reset device\n");
-    int ret = i2c->Write(SHT3x_RESET_CMD);
+    int ret = i2c->Write(RESET_CMD);
     if(ret<0)
         printf("SHT3X: ERROR - Reset device\n");
     // 0.5 ms - time between ACK of soft reset command and sensor entering idle state
@@ -40,9 +40,9 @@ void sht3x::get_status()
     int ret;
     int size = 3;
     uint8_t buffer[size] = {0};
-    ret = i2c->Write(SHT3x_STATUS_CMD);
+    ret = i2c->Write(STATUS_CMD);
     if (ret < 0)
-        printf("SHT3X: ERROR - failed to write SHT3x_STATUS_CMD\n");
+        printf("SHT3X: ERROR - failed to write STATUS_CMD\n");
     ret = i2c->Read(buffer, size);
     if (ret < 0)
         printf("SHT3X: ERROR - failed read status\n");
@@ -57,9 +57,85 @@ void sht3x::clear_status()
 {
     printf("SHT3X: Clear status\n");
     int ret;
-    ret = i2c->Write(SHT3x_CLEAR_STATUS_CMD);
+    ret = i2c->Write(CLEAR_STATUS_CMD);
     if (ret < 0)
-        printf("SHT3X: ERROR - failed to write SHT3x_CLEAR_STATUS_CMD\n");
+        printf("SHT3X: ERROR - failed to write CLEAR_STATUS_CMD\n");
+}
+
+int sht3x::start(Frequency frq, Repeatability rept)
+{
+    printf("SHT3X: Start measurements\n");
+    int ret;
+    // start measurement according to selected mode and return an duration estimate
+    ret = i2c->Write(MEASURE_CMD[(uint8_t)frq][(uint8_t)rept]);
+    if (ret < 0)
+    {
+        printf("SHT3X: ERROR - failed to write MEASURE_CMD\n");
+        return ret;
+    }
+    mode = frq;
+    started = true;
+    return ret;
+}
+
+int sht3x::single(float* temperature, float* humidity)
+{
+    printf("SHT3X: Get Single measurement\n");
+    if (start(Frequency::SINGLE_SHOT, Repeatability::HIGH) < 0)
+        return -1;
+
+    usleep(MEAS_DURATION_US[(uint8_t)Repeatability::HIGH]);
+
+    raw_data_t raw_data;
+    if (get_data(raw_data) < 0)
+        return -1;
+
+    parse_data (raw_data, temperature, humidity);
+    return 0;
+}
+
+int sht3x::get_data(raw_data_t raw_data)
+{
+    printf("SHT3X: Get measurement\n");
+    int ret = i2c->Write(FETCH_DATA_CMD);
+    if (ret < 0)
+    {
+        printf("SHT3X: ERROR - failed to write FETCH_DATA_CMD\n");
+        return ret;
+    }
+
+    ret = i2c->Read(raw_data, RAW_DATA_SIZE);
+    if (ret < 0)
+    {
+        printf("SHT3X: ERROR - failed to read raw data\n");
+        return ret;
+    }
+
+    if (mode == Frequency::SINGLE_SHOT)
+        started = false;
+
+    // check temperature crc
+    if (crc8(raw_data, 2) != raw_data[2])
+    {
+        printf("SHT3X: ERROR - CRC check for temperature data failed\n");
+        return -1;
+    }
+
+    // check humidity crc
+    if (crc8(raw_data + 3, 2) != raw_data[5])
+    {
+        printf("SHT3X: ERROR - CRC check for humidity data failed\n");
+        return -1;
+    }
+
+    return ret;
+}
+
+void sht3x::parse_data(raw_data_t raw_data, float *temperature, float *humidity)
+{
+    printf("SHT3X: Parsing raw data\n");
+    *temperature = ((((raw_data[0] * 256.0) + raw_data[1]) * 175) / 65535.0) - 45;
+    *humidity = ((((raw_data[3] * 256.0) + raw_data[4]) * 100) / 65535.0);
 }
 
 uint8_t sht3x::crc8(uint8_t *arr, int size)
