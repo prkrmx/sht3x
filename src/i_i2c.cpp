@@ -103,29 +103,6 @@ int i_i2c::Read(uint16_t reg, uint8_t *buf, uint16_t size)
     return ret;
 }
 
-int i_i2c::Read(uint8_t *buf, uint16_t size)
-{
-    struct i2c_rdwr_ioctl_data data;
-    struct i2c_msg *msgs = NULL;
-    int ret = -1;
-
-    memset(&data, 0, sizeof(data));
-    msgs = (i2c_msg *)calloc(1, sizeof(struct i2c_msg));
-    if (NULL == msgs)
-        return ret;
-
-    msgs[0].addr = address;
-    msgs[0].flags = I2C_M_RD;
-    msgs[0].len = size;
-    msgs[0].buf = buf;
-    data.msgs = msgs;
-    data.nmsgs = 1;
-
-    ret = ioctl(fd, I2C_RDWR, &data);
-    free(msgs);
-    return ret;
-}
-
 int i_i2c::Write(uint16_t reg, uint8_t value)
 {
     struct i2c_rdwr_ioctl_data data;
