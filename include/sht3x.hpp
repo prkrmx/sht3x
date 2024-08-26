@@ -14,6 +14,25 @@
 #include "stdbool.h"
 #include "i_i2c.hpp"
 
+/// @brief Data acquisition frequency (0.5, 1, 2, 4 & 10 measurements per second, mps)
+enum class Frequency : uint8_t
+{
+    SINGLE_SHOT, // one single measurement
+    PERIODIC_05, // periodic with 0.5 measurements per second (mps)
+    PERIODIC_1,  // periodic with   1 measurements per second (mps)
+    PERIODIC_2,  // periodic with   2 measurements per second (mps)
+    PERIODIC_4,  // periodic with   4 measurements per second (mps)
+    PERIODIC_10  // periodic with  10 measurements per second (mps)
+};
+
+/// @brief Repeatability Options
+enum class Repeatability : uint8_t
+{
+    HIGH,
+    MEDIUM,
+    LOW
+};
+
 class sht3x
 {
     // definition of possible I2C slave addresses
@@ -39,6 +58,7 @@ class sht3x
     #define RESET_CMD           0x30A2
     #define FETCH_DATA_CMD      0xE000
     #define HEATER_OFF_CMD      0x3066
+    #define BREAK_CMD           0x3093 // Break command - Stop Periodic Data Acquisition Mode
 
     #define MEAS_DURATION_HIGH  15
     #define MEAS_DURATION_MED   6
@@ -60,25 +80,6 @@ class sht3x
                                           MEAS_DURATION_MED  * 1000,
                                           MEAS_DURATION_LOW  * 1000};
 
-    /// @brief Data acquisition frequency (0.5, 1, 2, 4 & 10 measurements per second, mps)
-    enum class Frequency : uint8_t
-    {
-        SINGLE_SHOT, // one single measurement
-        PERIODIC_05, // periodic with 0.5 measurements per second (mps)
-        PERIODIC_1,  // periodic with   1 measurements per second (mps)
-        PERIODIC_2,  // periodic with   2 measurements per second (mps)
-        PERIODIC_4,  // periodic with   4 measurements per second (mps)
-        PERIODIC_10  // periodic with  10 measurements per second (mps)
-    };
-
-    /// @brief Repeatability Options
-    enum class Repeatability : uint8_t
-    {
-        HIGH,
-        MEDIUM,
-        LOW
-    };
-
 private:
     const uint8_t g_polynom = 0x31;
     Frequency mode;
@@ -98,7 +99,10 @@ public:
     int single(float *temperature, float *humidity);
     uint8_t crc8(uint8_t *arr, int size);
     void parse_data(raw_data_t raw_data, float *temperature, float *humidity);
+    int get_results (float* temperature, float* humidity);
     int get_data(raw_data_t raw_data);
+    void sleep (Repeatability rept);
+    int stop();
 };
 
 #endif /* SHT3x_H_ */
