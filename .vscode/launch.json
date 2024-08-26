@@ -12,8 +12,25 @@
             "externalConsole": false,
             "linux": {
                 "MIMode": "gdb",
-                "miDebuggerPath": "gdb",
-                "program": "${workspaceFolder}/output/sht3x"
+                // "miDebuggerPath": "gdb",
+                "miDebuggerPath": "${workspaceFolder}/dev_scripts/gdb_root.sh",
+                "program": "${workspaceFolder}/output/sht3x",
+                "setupCommands": [
+                    {
+                        "description": "Enable pretty-printing for gdb",
+                        "text": "-enable-pretty-printing",
+                        "ignoreFailures": true
+                    },
+                    {
+                        "description": "Set Disassembly Flavor to Intel",
+                        "text": "-gdb-set disassembly-flavor intel",
+                        "ignoreFailures": true
+                    },
+                    {
+                        "description": "Display hex values for variables",
+                        "text": "set output-radix 16"
+                    }
+                ]
             },
             "osx": {
                 "MIMode": "lldb",
