@@ -45,10 +45,12 @@ public:
     int Close();
 
     /// @brief Read from register
+    /// @tparam T Command type uint8_t or uint16_t
     /// @param reg Register
     /// @param value Value
     /// @return Action status
-    int Read(uint16_t reg, uint8_t *value);
+    template <typename T> 
+    int Read(T reg, uint8_t *value);
 
     /// @brief Read data to array
     /// @param reg Register
@@ -58,17 +60,21 @@ public:
     int Read(uint16_t reg, uint8_t *buf, uint16_t size);
 
     /// @brief Write to register
+    /// @tparam T Command type uint8_t or uint16_t
     /// @param reg Register
     /// @param value Value
     /// @return Action status
-    int Write(uint16_t reg, uint8_t value);
+    template <typename T> 
+    int Write(T reg, uint8_t value);
 
     /// @brief Write array
+    /// @tparam T Register type uint8_t or uint16_t
     /// @param reg Start register
     /// @param buf Array to write
     /// @param size Array size
     /// @return Action status
-    int Write(uint16_t reg, uint8_t *buf, uint16_t size);
+    template <typename T> 
+    int Write(T reg, uint8_t *buf, uint16_t size);
 
     /// @brief Write Command
     /// @tparam T Command type uint8_t or uint16_t
@@ -87,6 +93,112 @@ public:
     int Read(T reg, uint8_t *buf, uint16_t size);
 };
 
+template <typename T>
+int i_i2c::Read(T reg, uint8_t *value)
+{
+    struct i2c_rdwr_ioctl_data data;
+    struct i2c_msg *msgs = NULL;
+    uint8_t reg_size =  sizeof(T);
+    uint8_t reg_buf[reg_size] = {0};
+    int ret = -1;
+
+    if (reg_size == 1)
+        reg_buf[0] = reg;
+    else
+    {
+        reg_buf[0] = (uint8_t)(reg >> 8);
+        reg_buf[1] = (uint8_t)(reg & 0xFF);
+    }
+
+    memset(&data, 0, sizeof(data));
+    msgs = (i2c_msg *)calloc(2, sizeof(struct i2c_msg));
+    if (NULL == msgs)
+        return ret;
+
+    msgs[0].addr = address;
+    msgs[0].flags = 0;
+    msgs[0].len = reg_size;
+    msgs[0].buf = reg_buf;
+    msgs[1].addr = address;
+    msgs[1].flags = I2C_M_RD;
+    msgs[1].len = 1;
+    msgs[1].buf = value;
+    data.msgs = msgs;
+    data.nmsgs = 2;
+
+    ret = ioctl(fd, I2C_RDWR, &data);
+    free(msgs);
+    return ret;
+}
+
+template <typename T>
+int i_i2c::Write(T reg, uint8_t value)
+{
+    struct i2c_rdwr_ioctl_data data;
+    struct i2c_msg *msgs = NULL;
+    uint8_t reg_size =  sizeof(T);
+    uint8_t buffer[1 + reg_size] = {0};
+    int ret = -1;
+
+    if (reg_size == 1)
+        buffer[0] = reg;
+    else
+    {
+        buffer[0] = (uint8_t)(reg >> 8);
+        buffer[1] = (uint8_t)(reg & 0xFF);
+    }
+    buffer[reg_size] = value;
+    memset(&data, 0, sizeof(data));
+    msgs = (i2c_msg *)calloc(1, sizeof(struct i2c_msg));
+    if (NULL == msgs)
+        return ret;
+
+    msgs[0].addr = address;
+    msgs[0].flags = 0;
+    msgs[0].len = 1 + reg_size;
+    msgs[0].buf = buffer;
+    data.msgs = msgs;
+    data.nmsgs = 1;
+
+    ret = ioctl(fd, I2C_RDWR, &data);
+    free(msgs);
+    return ret;
+}
+
+template <typename T>
+int i_i2c::Write(T reg, uint8_t *buf, uint16_t size)
+{
+    struct i2c_rdwr_ioctl_data data;
+    struct i2c_msg *msgs = NULL;
+    uint8_t reg_size =  sizeof(T);
+    uint8_t buffer[size + reg_size] = {0};
+    int ret = -1;
+
+    if (reg_size == 1)
+        buffer[0] = reg;
+    else 
+    {
+        buffer[0] = (uint8_t)(reg >> 8);
+        buffer[1] = (uint8_t)(reg & 0xFF);
+    }
+    
+    memcpy(buffer + reg_size, buf, size);
+    memset(&data, 0, sizeof(data));
+    msgs = (i2c_msg *)calloc(1, sizeof(struct i2c_msg));
+    if (NULL == msgs)
+        return ret;
+
+    msgs[0].addr = address;
+    msgs[0].flags = 0;
+    msgs[0].len = size + reg_size;
+    msgs[0].buf = buffer;
+    data.msgs = msgs;
+    data.nmsgs = 1;
+
+    ret = ioctl(fd, I2C_RDWR, &data);
+    free(msgs);
+    return ret;
+}
 
 template <typename T>
 int i_i2c::Write(T reg)

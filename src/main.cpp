@@ -2,13 +2,15 @@
 #include "i_i2c.hpp"
 #include "sht3x.hpp"
 #include "ms5607.hpp"
+#include "pac193x.hpp"
 
 #define SHT3X 1
 #define MS5607 1
+#define CNTR 1
 
 int main(/*int argc, char *argv[]*/)
 {
-    int cntr = 10;
+    int cntr = CNTR;
     i_i2c i2c; // Main i2c interface
     printf("MAIN: Set IIC Parameters\n");
     i2c.alias = "IIC";
@@ -54,7 +56,7 @@ int main(/*int argc, char *argv[]*/)
     float P_val,T_val,H_val;
     s_ms5607.init();
 
-    cntr = 10;
+    cntr = CNTR;
     while (0 < cntr--)
     {
         if (s_ms5607.read())
@@ -73,8 +75,19 @@ int main(/*int argc, char *argv[]*/)
     }
 
 #endif
+    pac193x pac193x;
+    i2c.address = 0x10; // pac193x
+    pac193x.i2c = &i2c;
+    // pac193x.init();
 
-    // i2c.address = 0x10; // pac193x
+//     for (uint8_t i = 0; i < 3; i++)
+//         printf("pac193x: CH %d direction Voltage: %d Current: %d\n", i + 1, pac193x.get_voltage_drct(i), pac193x.get_current_drct(i));
+
+// sleep(5);
+
+    for (uint8_t i = 0; i < 3; i++)
+        printf("pac193x: CH %d\tmean voltage: %f[V]\tmean current: %f[mA]\n", i + 1, pac193x.get_bus_voltage(i, true), pac193x.get_current(i, true));
+
     i2c.Close();
 
     printf("MAIN: Done\n");
